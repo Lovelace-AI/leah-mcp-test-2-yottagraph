@@ -38,3 +38,26 @@ When prompted or when you notice limitations, provide constructive feedback:
 
 Be conversational and helpful. Explain your reasoning and show results clearly.
 ```
+
+## Implementation
+
+### Architecture
+
+- **Single-page chat UI** — the entire app is a conversation with the Elementary agent
+- **Auto-discovery** — the app fetches tenant config to find deployed agents and connects to the first one
+- **Streaming SSE** — messages stream via Server-Sent Events with buffered fallback
+
+### Key files
+
+| File                            | Purpose                                                 |
+| ------------------------------- | ------------------------------------------------------- |
+| `pages/index.vue`               | Full-screen chat interface with welcome state and input |
+| `components/ChatWelcome.vue`    | Welcome screen with suggested prompts                   |
+| `components/ChatMessage.vue`    | Chat bubble with markdown rendering                     |
+| `composables/useAgentChat.ts`   | Agent communication (SSE streaming + fallback)          |
+| `agents/example_agent/agent.py` | Elementary agent with Elemental API tools               |
+
+### Next steps
+
+- Deploy the agent with `/deploy_agent` to enable live chat
+- Push to `main` for Vercel deployment
