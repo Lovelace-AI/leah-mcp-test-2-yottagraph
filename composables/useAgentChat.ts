@@ -74,14 +74,14 @@ export function useAgentChat() {
             timestamp: Date.now(),
         });
 
-        const agentMsg: ChatMessage = {
+        messages.value.push({
             id: crypto.randomUUID(),
             role: 'agent',
             text: '',
             timestamp: Date.now(),
             streaming: true,
-        };
-        messages.value.push(agentMsg);
+        });
+        const agentMsgIdx = messages.value.length - 1;
 
         loading.value = true;
 
@@ -92,6 +92,10 @@ export function useAgentChat() {
         const reqBody: any = { message: text };
         if (sessionId.value) {
             reqBody.session_id = sessionId.value;
+        }
+
+        function updateAgent(patch: Partial<ChatMessage>) {
+            Object.assign(messages.value[agentMsgIdx], patch);
         }
 
         try {
@@ -108,18 +112,22 @@ export function useAgentChat() {
 
             for await (const { event, data } of readSSE(response)) {
                 if (event === 'text') {
-                    agentMsg.text = data.text;
+                    updateAgent({ text: data.text });
                 } else if (event === 'done') {
                     if (data.session_id) sessionId.value = data.session_id;
-                    if (data.text && !agentMsg.text) agentMsg.text = data.text;
+                    if (data.text && !messages.value[agentMsgIdx].text) {
+                        updateAgent({ text: data.text });
+                    }
                     break;
                 } else if (event === 'error') {
                     throw new Error(data.message || 'Agent error');
                 }
             }
 
-            agentMsg.streaming = false;
-            if (!agentMsg.text) agentMsg.text = 'Agent returned no text response.';
+            updateAgent({ streaming: false });
+            if (!messages.value[agentMsgIdx].text) {
+                updateAgent({ text: 'Agent returned no text response.' });
+            }
         } catch {
             // Fall back to the buffered /query endpoint
             try {
@@ -130,13 +138,13 @@ export function useAgentChat() {
                 );
 
                 if (response.session_id) sessionId.value = response.session_id;
-                agentMsg.text = extractAgentText(response.output);
-                agentMsg.streaming = false;
+                updateAgent({ text: extractAgentText(response.output), streaming: false });
             } catch (e: any) {
-                agentMsg.text =
-                    e.data?.statusMessage || e.message || 'Failed to get agent response';
-                agentMsg.error = true;
-                agentMsg.streaming = false;
+                updateAgent({
+                    text: e.data?.statusMessage || e.message || 'Failed to get agent response',
+                    error: true,
+                    streaming: false,
+                });
             }
         } finally {
             loading.value = false;
